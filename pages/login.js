@@ -1,13 +1,18 @@
-// pages/login.js
 import { useState } from "react";
 import { useRouter } from "next/router";
-import { supabase } from "../lib/supabaseClient";
+import { createClient } from "@supabase/supabase-js";
+
+// Create a Supabase client using your environment variables
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export default function LoginPage() {
   const router = useRouter();
-  const [mode, setMode] = useState("signin"); // "signin" | "signup"
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -17,68 +22,55 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      if (mode === "signin") {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-        if (error) throw error;
-        router.push("/app");
-      } else {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-        if (error) throw error;
-        alert(
-          "Account created. Check your email if verification is required, then sign in."
-        );
-        setMode("signin");
+      // Sign in with email + password
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        throw error;
       }
+
+      // If successful, go to /app
+      router.push("/app");
     } catch (err) {
-      console.error(err);
+      console.error("Login error:", err);
       setErrorMsg(err.message || "Something went wrong");
     } finally {
       setLoading(false);
     }
   };
 
+  // If env vars are missing, show a clear message
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+        <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-6 text-center">
+          <h1 className="text-xl font-bold mb-3 text-gray-800">
+            Configuration Error
+          </h1>
+          <p className="text-sm text-gray-600 mb-2">
+            Supabase environment variables are not set.
+          </p>
+          <p className="text-xs text-gray-500">
+            Please add NEXT_PUBLIC_SUPABASE_URL and
+            NEXT_PUBLIC_SUPABASE_ANON_KEY in your Vercel project settings.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg p-8">
         <h1 className="text-2xl font-bold mb-2 text-gray-800 text-center">
-          SkipLogic Portal
+          SkipLogic Login
         </h1>
         <p className="text-sm text-gray-500 mb-6 text-center">
-          {mode === "signin"
-            ? "Sign in to manage your skips and bookings."
-            : "Create an account (for now, used to set up owners)."}
+          Sign in with your email and password.
         </p>
-
-        <div className="flex mb-6 border rounded-lg overflow-hidden">
-          <button
-            type="button"
-            className={`flex-1 py-2 text-sm font-medium ${
-              mode === "signin"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700"
-            }`}
-            onClick={() => setMode("signin")}
-          >
-            Sign In
-          </button>
-          <button
-            type="button"
-            className={`flex-1 py-2 text-sm font-medium ${
-              mode === "signup"
-                ? "bg-blue-600 text-white"
-                : "bg-white text-gray-700"
-            }`}
-            onClick={() => setMode("signup")}
-          >
-            Sign Up
-          </button>
-        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
@@ -116,13 +108,7 @@ export default function LoginPage() {
             disabled={loading}
             className="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-60"
           >
-            {loading
-              ? mode === "signin"
-                ? "Signing in..."
-                : "Creating account..."
-              : mode === "signin"
-              ? "Sign In"
-              : "Sign Up"}
+            {loading ? "Signing in..." : "Sign In"}
           </button>
         </form>
       </div>
